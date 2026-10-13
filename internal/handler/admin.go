@@ -67,9 +67,10 @@ func (h *AdminHandler) GetProduct(c *gin.Context) {
 
 func (h *AdminHandler) CreateProduct(c *gin.Context) {
 	var req struct {
-		Name string `json:"name" binding:"required"`
-		Slug string `json:"slug" binding:"required"`
-		Type string `json:"type" binding:"required"`
+		Name      string `json:"name" binding:"required"`
+		Slug      string `json:"slug" binding:"required"`
+		Type      string `json:"type" binding:"required"`
+		KeyPrefix string `json:"key_prefix"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "name, slug, and type are required")
@@ -87,8 +88,17 @@ func (h *AdminHandler) CreateProduct(c *gin.Context) {
 		response.BadRequest(c, err.Message)
 		return
 	}
+	if err := apperr.ValidateKeyPrefix(req.KeyPrefix); err != nil {
+		response.BadRequest(c, err.Message)
+		return
+	}
 
-	p := &model.Product{Name: req.Name, Slug: req.Slug, Type: req.Type}
+	p := &model.Product{
+		Name:      req.Name,
+		Slug:      req.Slug,
+		Type:      req.Type,
+		KeyPrefix: strings.ToUpper(strings.TrimSpace(req.KeyPrefix)),
+	}
 	if err := h.Store.CreateProduct(c, p); err != nil {
 		response.Err(c, http.StatusConflict, "DUPLICATE", "product slug already exists")
 		return
@@ -117,6 +127,7 @@ func (h *AdminHandler) UpdateProduct(c *gin.Context) {
 		MinimumSupportedVersion *string `json:"minimum_supported_version"`
 		MinimumSupportedMessage *string `json:"minimum_supported_message"`
 		RequireSigning          *bool   `json:"require_signing"`
+		KeyPrefix               *string `json:"key_prefix"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "invalid request body")
@@ -179,6 +190,13 @@ func (h *AdminHandler) UpdateProduct(c *gin.Context) {
 	if req.RequireSigning != nil {
 		p.RequireSigning = *req.RequireSigning
 	}
+	if req.KeyPrefix != nil {
+		if err := apperr.ValidateKeyPrefix(*req.KeyPrefix); err != nil {
+			response.BadRequest(c, err.Message)
+			return
+		}
+		p.KeyPrefix = strings.ToUpper(strings.TrimSpace(*req.KeyPrefix))
+	}
 
 	if err := h.Store.UpdateProduct(c, p); err != nil {
 		response.Internal(c)
@@ -235,6 +253,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		MaxActivations  int    `json:"max_activations"`
 		MaxSeats        int    `json:"max_seats"`
 		TrialDays       int    `json:"trial_days"`
+		ActivationDays  int    `json:"activation_days"`
 		GraceDays       int    `json:"grace_days"`
 		StripePriceID   string `json:"stripe_price_id"`
 		LicenseModel    string `json:"license_model"`
@@ -266,6 +285,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		MaxActivations:  req.MaxActivations,
 		MaxSeats:        req.MaxSeats,
 		TrialDays:       req.TrialDays,
+		ActivationDays:  req.ActivationDays,
 		GraceDays:       req.GraceDays,
 		FloatingTimeout: req.FloatingTimeout,
 	}); err != nil {
@@ -331,6 +351,7 @@ func (h *AdminHandler) CreatePlan(c *gin.Context) {
 		MaxActivations:  req.MaxActivations,
 		MaxSeats:        req.MaxSeats,
 		TrialDays:       req.TrialDays,
+		ActivationDays:  req.ActivationDays,
 		GraceDays:       req.GraceDays,
 		StripePriceID:   req.StripePriceID,
 		LicenseModel:    licenseModel,
@@ -367,6 +388,7 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 		MaxActivations  *int    `json:"max_activations"`
 		MaxSeats        *int    `json:"max_seats"`
 		TrialDays       *int    `json:"trial_days"`
+		ActivationDays  *int    `json:"activation_days"`
 		GraceDays       *int    `json:"grace_days"`
 		StripePriceID   *string `json:"stripe_price_id"`
 		LicenseModel    *string `json:"license_model"`
@@ -426,7 +448,7 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 	// a legacy value).
 	check := planBounds{
 		MaxActivations: p.MaxActivations, MaxSeats: p.MaxSeats,
-		TrialDays: p.TrialDays, GraceDays: p.GraceDays,
+		TrialDays: p.TrialDays, ActivationDays: p.ActivationDays, GraceDays: p.GraceDays,
 		FloatingTimeout: p.FloatingTimeout,
 	}
 	if req.MaxActivations != nil {
@@ -437,6 +459,9 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 	}
 	if req.TrialDays != nil {
 		check.TrialDays = *req.TrialDays
+	}
+	if req.ActivationDays != nil {
+		check.ActivationDays = *req.ActivationDays
 	}
 	if req.GraceDays != nil {
 		check.GraceDays = *req.GraceDays
@@ -469,6 +494,9 @@ func (h *AdminHandler) UpdatePlan(c *gin.Context) {
 	}
 	if req.TrialDays != nil {
 		p.TrialDays = *req.TrialDays
+	}
+	if req.ActivationDays != nil {
+		p.ActivationDays = *req.ActivationDays
 	}
 	if req.GraceDays != nil {
 		p.GraceDays = *req.GraceDays
@@ -702,6 +730,7 @@ type planBounds struct {
 	MaxActivations  int
 	MaxSeats        int
 	TrialDays       int
+	ActivationDays  int
 	GraceDays       int
 	FloatingTimeout int // minutes
 }
@@ -720,6 +749,10 @@ func validatePlanNumericBounds(b planBounds) error {
 		return fmt.Errorf("trial_days cannot be negative")
 	case b.TrialDays > 365:
 		return fmt.Errorf("trial_days cannot exceed 365")
+	case b.ActivationDays < 0:
+		return fmt.Errorf("activation_days cannot be negative")
+	case b.ActivationDays > 3650:
+		return fmt.Errorf("activation_days cannot exceed 3650")
 	case b.GraceDays < 0:
 		return fmt.Errorf("grace_days cannot be negative")
 	case b.GraceDays > 365:
@@ -890,6 +923,14 @@ func (h *AdminHandler) CreateLicense(c *gin.Context) {
 		return
 	}
 
+	// Product carries the custom license-key prefix (products.key_prefix).
+	// Best-effort: an empty prefix falls back to the default "KG".
+	prod, err := h.Store.FindProductByID(c, req.ProductID)
+	if err != nil {
+		response.NotFound(c, "product not found")
+		return
+	}
+
 	status := model.StatusActive
 	if plan.LicenseType == "trial" {
 		status = model.StatusTrialing
@@ -899,18 +940,18 @@ func (h *AdminHandler) CreateLicense(c *gin.Context) {
 		ProductID:           req.ProductID,
 		PlanID:              req.PlanID,
 		Email:               req.Email,
-		LicenseKey:          license.GenerateKey(""),
+		LicenseKey:          license.GenerateKey(prod.KeyPrefix),
 		Status:              status,
 		Notes:               req.Notes,
 		ExternalCustomerID:  req.ExternalCustomerID,
 		ExternalWorkspaceID: req.ExternalWorkspaceID,
 	}
 
-	// Set valid_until for trial licenses
-	if plan.LicenseType == "trial" && plan.TrialDays > 0 {
-		until := time.Now().Add(time.Duration(plan.TrialDays) * 24 * time.Hour)
-		l.ValidUntil = &until
-	}
+	// Time-limited licenses are anchored at the FIRST device activation,
+	// not at creation: a key sitting unused (or resold before the buyer
+	// runs it) must not burn its window. The window (activation_days, or
+	// trial_days for trial plans) is materialized by LicenseService.Activate
+	// via SetLicenseWindow. Licenses with no duration stay perpetual (nil).
 
 	// Create license and subscription in a single transaction to prevent orphan records
 	if err := h.Store.CreateLicenseWithSubscription(c, l, plan); err != nil {
@@ -934,11 +975,7 @@ func (h *AdminHandler) CreateLicense(c *gin.Context) {
 	// is logged inside SendLicenseCreated but doesn't fail the API call —
 	// the license is already persisted, and admin can resend manually.
 	if h.Email != nil && h.Email.IsConfigured() {
-		productName := ""
-		if prod, err := h.Store.FindProductByID(c, l.ProductID); err == nil {
-			productName = prod.Name
-		}
-		h.Email.SendLicenseCreated(req.Email, productName, plan.Name, l.LicenseKey)
+		h.Email.SendLicenseCreated(req.Email, prod.Name, plan.Name, l.LicenseKey)
 	}
 
 	response.Created(c, l)

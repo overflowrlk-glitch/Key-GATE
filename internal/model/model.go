@@ -138,6 +138,12 @@ type Product struct {
 	// builds (CI test artifacts, internal tooling).
 	RequireSigning bool `bun:",notnull,default:true" json:"require_signing"`
 
+	// KeyPrefix: custom prefix for license keys minted for this product
+	// (e.g. "FAST" → FAST-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX). Empty =
+	// the default "KG". Uppercase alphanumerics only; the dash is the
+	// segment separator, so it is not allowed inside the prefix.
+	KeyPrefix string `bun:",notnull,default:''" json:"key_prefix"`
+
 	CreatedAt time.Time `bun:",nullzero,default:now()" json:"created_at"`
 }
 
@@ -231,6 +237,12 @@ type Plan struct {
 	// sole source of truth for these values.
 	MaxActivations  int       `bun:",notnull" json:"max_activations"`
 	TrialDays       int       `bun:",notnull" json:"trial_days"`
+	// ActivationDays: validity window (days) anchored at the FIRST device
+	// activation instead of at license creation — a key sitting unused
+	// doesn't burn time. Takes precedence over TrialDays; 0 = off (trial
+	// plans still anchor their trial_days at activation; other types with
+	// 0 have no expiry).
+	ActivationDays  int       `bun:",notnull" json:"activation_days"`
 	GraceDays       int       `bun:",notnull" json:"grace_days"`
 	StripePriceID   string    `json:"stripe_price_id,omitempty"`
 	LicenseModel    string    `bun:",notnull" json:"license_model"` // standard | floating

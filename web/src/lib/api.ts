@@ -155,7 +155,8 @@ export const admin = {
     return get<{ products: Product[] }>(`/admin/products?${q}`)
   },
   getProduct: (id: string) => get<Product>(`/admin/products/${id}`),
-  createProduct: (data: { name: string; slug: string; type: string }) => post<Product>("/admin/products", data),
+  createProduct: (data: { name: string; slug: string; type: string; key_prefix?: string }) =>
+    post<Product>("/admin/products", data),
   updateProduct: (id: string, data: Partial<Product>) => put<Product>(`/admin/products/${id}`, data),
   deleteProduct: (id: string) => del(`/admin/products/${id}`),
 
@@ -484,6 +485,7 @@ export interface Product {
   minimum_supported_version?: string
   minimum_supported_message?: string
   require_signing: boolean
+  key_prefix?: string
   created_at: string
 }
 
@@ -500,6 +502,7 @@ export interface Plan {
   floating_timeout?: number
   max_seats: number
   trial_days: number
+  activation_days?: number
   grace_days: number
   stripe_price_id?: string
   active: boolean

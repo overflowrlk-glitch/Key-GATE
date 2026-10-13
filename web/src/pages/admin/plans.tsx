@@ -312,6 +312,7 @@ function PlanDialog({
     max_activations: plan?.max_activations ?? 3,
     max_seats: plan?.max_seats ?? 1,
     trial_days: plan?.trial_days ?? 0,
+    activation_days: plan?.activation_days ?? 0,
     grace_days: plan?.grace_days ?? 7,
     license_model: plan?.license_model || "standard",
     floating_timeout: plan?.floating_timeout ?? 30,
@@ -485,6 +486,16 @@ function PlanDialog({
                 value={form.trial_days}
                 onChange={(e) => set("trial_days", Number(e.target.value))}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("plans.activationDays")}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.activation_days}
+                onChange={(e) => set("activation_days", Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">{t("plans.activationDaysHint")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("plans.graceDays")}</Label>

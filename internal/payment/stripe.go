@@ -337,11 +337,18 @@ func (h *StripeHandler) fulfillCheckout(ctx context.Context, email, customerID, 
 		status = model.StatusTrialing
 	}
 
+	// Product-level custom key prefix (products.key_prefix). Best-effort:
+	// empty falls back to the default "KG" inside GenerateKey.
+	keyPrefix := ""
+	if prod, err := h.Store.FindProductByID(ctx, plan.ProductID); err == nil {
+		keyPrefix = prod.KeyPrefix
+	}
+
 	lic := &model.License{
 		ProductID:        plan.ProductID,
 		PlanID:           plan.ID,
 		Email:            email,
-		LicenseKey:       license.GenerateKey(""),
+		LicenseKey:       license.GenerateKey(keyPrefix),
 		PaymentProvider:  "stripe",
 		StripeCustomerID: customerID,
 		Status:           status,

@@ -213,7 +213,7 @@ function ProductDialog({
   open: boolean
   onClose: () => void
   product?: Product
-  onSubmit: (data: { name: string; slug: string; type: string }) => void
+  onSubmit: (data: { name: string; slug: string; type: string; key_prefix: string }) => void
   loading: boolean
   title: string
 }) {
@@ -221,10 +221,11 @@ function ProductDialog({
   const [name, setName] = useState(product?.name || "")
   const [slug, setSlug] = useState(product?.slug || "")
   const [type, setType] = useState(product?.type || "desktop")
+  const [keyPrefix, setKeyPrefix] = useState(product?.key_prefix || "")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ name, slug, type })
+    onSubmit({ name, slug, type, key_prefix: keyPrefix })
   }
 
   return (
@@ -255,6 +256,16 @@ function ProductDialog({
           <div className="space-y-2">
             <Label>{t("products.slug")}</Label>
             <Input value={slug} onChange={(e) => setSlug(e.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("products.keyPrefix")}</Label>
+            <Input
+              value={keyPrefix}
+              onChange={(e) => setKeyPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+              placeholder="KG"
+              maxLength={24}
+            />
+            <p className="text-xs text-muted-foreground">{t("products.keyPrefixHint")}</p>
           </div>
           <div className="space-y-2">
             <Label>{t("common.type")}</Label>

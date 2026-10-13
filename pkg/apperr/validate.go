@@ -80,6 +80,27 @@ func ValidateSlug(value string) *AppError {
 	return nil
 }
 
+// ValidateKeyPrefix validates an optional custom license-key prefix
+// (products.key_prefix). Empty is valid — it means "use the default
+// KG". Letters and digits only: the prefix is joined to the random
+// segments with dashes, so a dash inside it would break the key shape.
+// Callers upper-case the value after validation.
+func ValidateKeyPrefix(value string) *AppError {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return nil
+	}
+	if len(v) < 2 || len(v) > 24 {
+		return BadRequest("key prefix must be between 2 and 24 characters")
+	}
+	for _, c := range v {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			return BadRequest("key prefix must contain only letters and numbers (A-Z, 0-9)")
+		}
+	}
+	return nil
+}
+
 func ValidateURL(value string) *AppError {
 	if value == "" {
 		return &AppError{Status: 400, Code: "INVALID_INPUT", Message: "url is required"}

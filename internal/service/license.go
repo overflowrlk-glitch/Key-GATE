@@ -67,7 +67,12 @@ type ActivateResult struct {
 	Status    string         `json:"status"` // "activated" | "already_activated"
 	LicenseID string         `json:"license_id"`
 	Token     string         `json:"token"`
-	Meta      map[string]any `json:"meta"`
+	PlanName  string         `json:"plan_name,omitempty"`
+	// ValidUntil: filled after the window is anchored at this first
+	// activation (or echoed as-is for an already-activated license), so
+	// the client can show "expires on <date>" right away.
+	ValidUntil *time.Time     `json:"valid_until,omitempty"`
+	Meta       map[string]any `json:"meta"`
 }
 
 func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*ActivateResult, error) {
@@ -122,8 +127,10 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 		}
 		return &ActivateResult{
 			Status: "already_activated", LicenseID: lic.ID,
-			Token: token,
-			Meta:  responseMeta(),
+			Token:      token,
+			PlanName:   licensePlanName(lic),
+			ValidUntil: lic.ValidUntil,
+			Meta:       responseMeta(),
 		}, nil
 	}
 
@@ -144,6 +151,12 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 		}
 		return nil, apperr.Internal(err)
 	}
+
+	// Validade ancorada no dispositivo: a janela do plano (activation_days,
+	// ou trial_days para planos trial) nasce AQUI, na primeira ativacao —
+	// key parada nao consome tempo. Condicional a valid_until IS NULL no
+	// store (corrida de duas primeiras ativacoes nao estende a janela).
+	s.anchorLicenseClock(ctx, lic)
 
 	s.store.Audit(ctx, &model.AuditLog{
 		Entity: "license", EntityID: lic.ID, Action: "activated",
@@ -174,9 +187,55 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 
 	return &ActivateResult{
 		Status: "activated", LicenseID: lic.ID,
-		Token: token,
-		Meta:  responseMeta(),
+		Token:      token,
+		PlanName:   licensePlanName(lic),
+		ValidUntil: lic.ValidUntil,
+		Meta:       responseMeta(),
 	}, nil
+}
+
+// anchorLicenseClock materializes the validity window at the FIRST device
+// activation for plans that anchor their clock on the device
+// (plans.activation_days, or trial_days for trial plans — activation_days
+// wins when both are set). Licenses that already carry a window (Stripe
+// billing, previously anchored) are never shifted: SetLicenseWindow only
+// touches rows with valid_until IS NULL.
+func (s *LicenseService) anchorLicenseClock(ctx context.Context, lic *model.License) {
+	days := 0
+	if lic.Plan != nil {
+		switch {
+		case lic.Plan.ActivationDays > 0:
+			days = lic.Plan.ActivationDays
+		case lic.Plan.LicenseType == "trial" && lic.Plan.TrialDays > 0:
+			days = lic.Plan.TrialDays
+		}
+	}
+	if days <= 0 || lic.ValidUntil != nil {
+		return
+	}
+	now := time.Now()
+	until := now.Add(time.Duration(days) * 24 * time.Hour)
+	if err := s.store.SetLicenseWindow(ctx, lic.ID, now, until); err != nil {
+		s.logger.Error("anchor license clock failed", "license_id", lic.ID, "error", err)
+		return
+	}
+	// Best-effort mirror onto the subscription row (panel bookkeeping).
+	if err := s.store.SetSubscriptionTrialWindow(ctx, lic.ID, now, until); err != nil {
+		s.logger.Error("anchor trial window on subscription failed", "license_id", lic.ID, "error", err)
+	}
+	lic.ValidFrom = now
+	lic.ValidUntil = &until
+	s.logger.Info("license window anchored at first activation",
+		"license_id", lic.ID, "days", days, "valid_until", until)
+}
+
+// licensePlanName is a small nil-safe accessor used by the activate
+// response so clients can display the plan without a second call.
+func licensePlanName(lic *model.License) string {
+	if lic.Plan != nil {
+		return lic.Plan.Name
+	}
+	return ""
 }
 
 // ─── Verify ───

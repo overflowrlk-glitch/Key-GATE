@@ -82,6 +82,9 @@ const zh = {
   "products.createTitle": "创建产品",
   "products.editTitle": "编辑产品",
   "products.formDesc": "请填写产品详细信息。",
+  "products.keyPrefix": "密钥前缀",
+  "products.keyPrefixHint":
+    "生成的许可证密钥的自定义前缀（例如 FAST → FAST-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX）。留空则使用默认 KG。",
 
   // Plans
   "plans.title": "方案管理",
@@ -99,6 +102,9 @@ const zh = {
   "plans.hintHybrid": "混合产品 — 激活、席位、自动更新 feed 全部可用。",
   "plans.notApplicableForType": "该产品类型不适用",
   "plans.trialDays": "试用天数",
+  "plans.activationDays": "首次激活后天数",
+  "plans.activationDaysHint":
+    "密钥有效期从首次在设备上激活时开始计算，而不是从创建时。试用方案也从激活时开始计算试用天数。0 = 关闭。",
   "plans.graceDays": "宽限天数",
   "plans.billingInterval": "计费周期",
   "plans.empty": "暂无方案",

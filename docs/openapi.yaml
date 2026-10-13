@@ -848,6 +848,18 @@ components:
                 Ed25519-signed offline verification token. Format:
                 `<base64url-payload>.<base64url-signature>`. Verify
                 using the server's public key from /license/pubkey.
+            plan_name:
+              type: string
+              description: Plan display name (for client UIs)
+            valid_until:
+              type: string
+              format: date-time
+              nullable: true
+              description: |
+                End of the validity window. When the plan anchors its
+                clock on the device (activation_days, or trial_days for
+                trial plans), this is filled at the first activation:
+                valid_until = first activation + window days.
 
     VerifyResponse:
       type: object

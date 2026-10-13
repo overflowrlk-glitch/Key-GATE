@@ -524,11 +524,14 @@ func (s *Store) CreateLicenseWithSubscription(ctx context.Context, l *model.Lice
 			PlanID:    plan.ID,
 			Status:    l.Status,
 		}
-		if plan.LicenseType == "trial" && plan.TrialDays > 0 {
+		// Trial bookkeeping mirrors the license window: present at creation
+		// only when the license already carries one (Stripe checkout). For
+		// device-anchored licenses (valid_until nil until first activation)
+		// the dates are filled by SetSubscriptionTrialWindow at anchor time.
+		if plan.LicenseType == "trial" && plan.TrialDays > 0 && l.ValidUntil != nil {
 			now := time.Now()
 			sub.TrialStart = &now
-			until := now.Add(time.Duration(plan.TrialDays) * 24 * time.Hour)
-			sub.TrialEnd = &until
+			sub.TrialEnd = l.ValidUntil
 		}
 		if _, err := tx.NewInsert().Model(sub).Exec(ctx); err != nil {
 			return err
@@ -723,6 +726,34 @@ func (s *Store) FindActivation(ctx context.Context, licenseID, identifier string
 func (s *Store) TouchActivation(ctx context.Context, id string) error {
 	_, err := s.DB.NewUpdate().Model((*model.Activation)(nil)).
 		Set("last_verified = now()").Where("id = ?", id).Exec(ctx)
+	return err
+}
+
+// SetLicenseWindow anchors a license's validity window (valid_from /
+// valid_until) at the first device activation. Conditional on
+// valid_until IS NULL so concurrent first activations can't extend the
+// window twice, and so licenses already carrying a window (Stripe
+// billing, previously anchored) are never shifted.
+func (s *Store) SetLicenseWindow(ctx context.Context, id string, from, until time.Time) error {
+	_, err := s.DB.NewUpdate().Model((*model.License)(nil)).
+		Set("valid_from = ?", from).
+		Set("valid_until = ?", until).
+		Set("updated_at = ?", time.Now()).
+		Where("id = ? AND valid_until IS NULL", id).
+		Exec(ctx)
+	return err
+}
+
+// SetSubscriptionTrialWindow mirrors the anchored license window onto the
+// license's subscription row (best-effort bookkeeping for the panel).
+// Conditional on trial_end IS NULL so an already-recorded trial period is
+// never rewritten.
+func (s *Store) SetSubscriptionTrialWindow(ctx context.Context, licenseID string, start, end time.Time) error {
+	_, err := s.DB.NewUpdate().Model((*model.Subscription)(nil)).
+		Set("trial_start = ?", start).
+		Set("trial_end = ?", end).
+		Where("license_id = ? AND trial_end IS NULL", licenseID).
+		Exec(ctx)
 	return err
 }
 

@@ -83,6 +83,9 @@ const en = {
   "products.createTitle": "Create Product",
   "products.editTitle": "Edit Product",
   "products.formDesc": "Fill in the product details below.",
+  "products.keyPrefix": "Key Prefix",
+  "products.keyPrefixHint":
+    "Custom prefix for generated license keys (e.g. FAST → FAST-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX). Leave empty for the default KG.",
 
   // Plans
   "plans.title": "Plans",
@@ -100,6 +103,9 @@ const en = {
   "plans.hintHybrid": "Hybrid product — activations, seats, and release feeds are all available.",
   "plans.notApplicableForType": "Not applicable for this product type",
   "plans.trialDays": "Trial Days",
+  "plans.activationDays": "Days from First Activation",
+  "plans.activationDaysHint":
+    "Validity starts counting when the key is first activated on a device, not at creation. Trial plans also count their trial days from activation. 0 = off.",
   "plans.graceDays": "Grace Days",
   "plans.billingInterval": "Billing Interval",
   "plans.empty": "No plans yet",
