@@ -204,6 +204,15 @@ export const admin = {
     external_customer_id?: string
     external_workspace_id?: string
   }) => post<License>("/admin/licenses", data),
+  createLicensesBulk: (data: {
+    product_id: string
+    plan_id: string
+    email: string
+    count: number
+    notes?: string
+    external_customer_id?: string
+    external_workspace_id?: string
+  }) => post<{ created: number; licenses: License[] }>("/admin/licenses/bulk", data),
   revokeLicense: (id: string) => post(`/admin/licenses/${id}/revoke`),
   suspendLicense: (id: string) => post(`/admin/licenses/${id}/suspend`),
   reinstateLicense: (id: string) => post(`/admin/licenses/${id}/reinstate`),

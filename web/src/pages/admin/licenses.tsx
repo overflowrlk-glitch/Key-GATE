@@ -33,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useI18n } from "@/i18n"
-import { admin } from "@/lib/api"
+import { admin, type License } from "@/lib/api"
 import { formatDate, statusColor } from "@/lib/utils"
 
 export default function LicensesPage() {
@@ -60,18 +60,29 @@ export default function LicensesPage() {
 
   const [creating, setCreating] = useState(false)
   const [viewing, setViewing] = useState<string | null>(null)
+  const [bulkKeys, setBulkKeys] = useState<License[] | null>(null)
 
   const products = productsData?.products || []
   const licenses = data?.licenses || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / limit)
 
-  const createMut = useMutation({
-    mutationFn: admin.createLicense,
-    onSuccess: () => {
+  type CreateInput = Parameters<typeof admin.createLicense>[0] & { count?: number }
+  type CreateResult = License | { created: number; licenses: License[] }
+  const createMut = useMutation<CreateResult, Error, CreateInput>({
+    mutationFn: async (d) => {
+      if ((d.count ?? 1) > 1) return admin.createLicensesBulk({ ...d, count: d.count ?? 1 })
+      return admin.createLicense(d)
+    },
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["admin", "licenses"] })
       setCreating(false)
-      showToast(t("toast.licenseCreated"), "success")
+      if ("licenses" in res) {
+        setBulkKeys(res.licenses)
+        showToast(`${res.created} keys created`, "success")
+      } else {
+        showToast(t("toast.licenseCreated"), "success")
+      }
     },
   })
 
@@ -237,6 +248,9 @@ export default function LicensesPage() {
         />
       )}
 
+      {/* Bulk result: keys minted in one shot — copy before closing */}
+      {bulkKeys && bulkKeys.length > 0 && <BulkKeysDialog keys={bulkKeys} onClose={() => setBulkKeys(null)} />}
+
       {/* Detail */}
       {viewing && <LicenseDetail id={viewing} onClose={() => setViewing(null)} />}
     </div>
@@ -257,6 +271,7 @@ function CreateLicenseDialog({
     product_id: string
     plan_id: string
     email: string
+    count?: number
     notes?: string
     external_customer_id?: string
     external_workspace_id?: string
@@ -266,6 +281,7 @@ function CreateLicenseDialog({
   const { t } = useI18n()
   const [productId, setProductId] = useState(products[0]?.id || "")
   const [email, setEmail] = useState("")
+  const [count, setCount] = useState(1)
   const [notes, setNotes] = useState("")
   const [planId, setPlanId] = useState("")
   const [externalCustomerID, setExternalCustomerID] = useState("")
@@ -307,6 +323,7 @@ function CreateLicenseDialog({
               product_id: productId,
               plan_id: planId,
               email,
+              count: count > 1 ? count : undefined,
               notes,
               external_customer_id: externalCustomerID.trim() || undefined,
               external_workspace_id: externalWorkspaceID.trim() || undefined,
@@ -356,6 +373,21 @@ function CreateLicenseDialog({
             <Label>{t("common.email")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
+          {/* Bulk stock: same plan/email, N keys per batch (cap 100 no backend). */}
+          <div className="space-y-2">
+            <Label>{t("licenses.quantity")}</Label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={count}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10)
+                setCount(Number.isNaN(n) ? 1 : Math.min(100, Math.max(1, n)))
+              }}
+            />
+            <p className="text-xs text-muted-foreground">{t("licenses.quantityDesc")}</p>
+          </div>
           <div className="space-y-2">
             <Label>{t("licenses.notesOptional")}</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -393,6 +425,43 @@ function CreateLicenseDialog({
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// BulkKeysDialog: shown after a bulk mint. The full key list only appears
+// here (the licenses table shows masked keys), so "copy all" is the point.
+function BulkKeysDialog({ keys, onClose }: { keys: License[]; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const all = keys.map((k) => k.license_key).join("\n")
+  return (
+    <Dialog
+      open
+      onOpenChange={() => onClose()}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{keys.length} keys created</DialogTitle>
+          <DialogDescription>Copy them now — the full keys are only listed here.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/40 p-3">
+          <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-6">{all}</pre>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(all)
+              setCopied(true)
+            }}
+          >
+            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            Copy all
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

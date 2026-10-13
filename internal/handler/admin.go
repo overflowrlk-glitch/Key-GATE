@@ -981,6 +981,97 @@ func (h *AdminHandler) CreateLicense(c *gin.Context) {
 	response.Created(c, l)
 }
 
+// CreateLicensesBulk mints N licenses of the same product/plan in one call
+// (stock for resale: pick "daily" + quantity 10, get 10 keys back). Same
+// fields as CreateLicense plus count (1..100). The email is shared across
+// the batch and NO welcome email is sent — the keys come back in the
+// response for the admin to distribute. If a row fails mid-batch the ones
+// already created are still returned with their count.
+func (h *AdminHandler) CreateLicensesBulk(c *gin.Context) {
+	var req struct {
+		ProductID           string `json:"product_id" binding:"required"`
+		PlanID              string `json:"plan_id" binding:"required"`
+		Email               string `json:"email" binding:"required"`
+		Count               int    `json:"count"`
+		Notes               string `json:"notes"`
+		ExternalCustomerID  string `json:"external_customer_id"`
+		ExternalWorkspaceID string `json:"external_workspace_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "product_id, plan_id, and email are required")
+		return
+	}
+	if req.Count <= 0 {
+		req.Count = 1
+	}
+	if req.Count > 100 {
+		response.BadRequest(c, "count must be between 1 and 100")
+		return
+	}
+	if appErr := apperr.ValidateEmail(req.Email); appErr != nil {
+		response.BadRequest(c, appErr.Message)
+		return
+	}
+	if len(req.ExternalCustomerID) > 256 || len(req.ExternalWorkspaceID) > 256 {
+		response.BadRequest(c, "external ids must be ≤ 256 chars")
+		return
+	}
+
+	plan, err := h.Store.FindPlanByID(c, req.PlanID)
+	if err != nil {
+		response.NotFound(c, "plan not found")
+		return
+	}
+	if plan.ProductID != req.ProductID {
+		response.Err(c, http.StatusBadRequest, "PLAN_PRODUCT_MISMATCH",
+			"plan does not belong to the requested product")
+		return
+	}
+	if !requireKeyProductScope(c, req.ProductID) {
+		return
+	}
+	prod, err := h.Store.FindProductByID(c, req.ProductID)
+	if err != nil {
+		response.NotFound(c, "product not found")
+		return
+	}
+
+	status := model.StatusActive
+	if plan.LicenseType == "trial" {
+		status = model.StatusTrialing
+	}
+
+	created := make([]*model.License, 0, req.Count)
+	for i := 0; i < req.Count; i++ {
+		l := &model.License{
+			ProductID:           req.ProductID,
+			PlanID:              req.PlanID,
+			Email:               req.Email,
+			LicenseKey:          license.GenerateKey(prod.KeyPrefix),
+			Status:              status,
+			Notes:               req.Notes,
+			ExternalCustomerID:  req.ExternalCustomerID,
+			ExternalWorkspaceID: req.ExternalWorkspaceID,
+		}
+		if err := h.Store.CreateLicenseWithSubscription(c, l, plan); err != nil {
+			if len(created) == 0 {
+				response.Internal(c)
+				return
+			}
+			break
+		}
+		created = append(created, l)
+	}
+
+	h.Store.Audit(c, &model.AuditLog{
+		Entity: "license", EntityID: created[0].ID, Action: "created_bulk",
+		ActorType: "admin", ActorID: adminID(c),
+		Changes: map[string]any{"email": req.Email, "plan_id": req.PlanID, "count": len(created)},
+	})
+
+	response.Created(c, gin.H{"created": len(created), "licenses": created})
+}
+
 func (h *AdminHandler) RevokeLicense(c *gin.Context) {
 	id := c.Param("id")
 	if !h.checkLicenseScope(c, id) {

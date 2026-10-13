@@ -129,6 +129,7 @@ const en = {
   "licenses.title": "Licenses",
   "licenses.subtitle": "Manage software licenses.",
   "licenses.issue": "Issue License",
+  "licenses.quantityDesc": "1 issues a single license; up to 100 per batch.",
   "licenses.licenseKey": "License Key",
   "licenses.validUntil": "Valid Until",
   "licenses.empty": "No licenses found",

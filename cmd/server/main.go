@@ -841,6 +841,7 @@ func main() {
 		licWrite.GET("/licenses/export", adminH.ExportLicenses)
 		licWrite.GET("/licenses/:id", adminH.GetLicense)
 		licWrite.POST("/licenses", adminH.CreateLicense)
+		licWrite.POST("/licenses/bulk", adminH.CreateLicensesBulk)
 		licWrite.POST("/licenses/:id/refund", adminH.RefundLicense)
 		licWrite.POST("/licenses/:id/revoke", adminH.RevokeLicense)
 		licWrite.POST("/licenses/:id/suspend", adminH.SuspendLicense)

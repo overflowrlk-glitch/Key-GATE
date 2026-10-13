@@ -127,6 +127,7 @@ const zh = {
   "licenses.title": "许可证管理",
   "licenses.subtitle": "管理软件许可证。",
   "licenses.issue": "签发许可证",
+  "licenses.quantityDesc": "1 = 单个许可证；每批最多 100 个。",
   "licenses.licenseKey": "许可证密钥",
   "licenses.validUntil": "有效期至",
   "licenses.empty": "未找到许可证",
