@@ -44,7 +44,14 @@ jobs:
         run: go test -count=1 -run "Atomic" ./internal/store/
 
       - name: Build
-        run: go build -o /dev/null ./cmd/server
+        run: go build -o bin/keygate ./cmd/server
+
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: keygate-server
+          path: bin/keygate
+          retention-days: 30
 
   frontend:
     name: Frontend
@@ -65,3 +72,10 @@ jobs:
 
       - name: Build
         run: cd web && bun run build
+
+      - name: Upload web dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: keygate-web
+          path: web/dist
+          retention-days: 30
