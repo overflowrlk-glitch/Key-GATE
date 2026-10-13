@@ -1227,6 +1227,28 @@ func (h *AdminHandler) ListLicenseUsage(c *gin.Context) {
 	response.OK(c, gin.H{"events": events, "counters": counters, "total": total})
 }
 
+// ListLicenseSessions returns activity telemetry for one license:
+// a summary (opens ≈ session rows, total verifies, time online, last
+// seen) plus the most recent sessions. See store.TouchLicenseSession
+// for how sessions are defined.
+func (h *AdminHandler) ListLicenseSessions(c *gin.Context) {
+	id := c.Param("id")
+	if !h.checkLicenseScope(c, id) {
+		return
+	}
+	summary, err := h.Store.LicenseSessionStats(c, id)
+	if err != nil {
+		response.Internal(c)
+		return
+	}
+	sessions, err := h.Store.ListLicenseSessions(c, id, queryInt(c, "limit", 50))
+	if err != nil {
+		response.Internal(c)
+		return
+	}
+	response.OK(c, gin.H{"summary": summary, "sessions": sessions})
+}
+
 func (h *AdminHandler) ResetLicenseUsage(c *gin.Context) {
 	id := c.Param("id")
 	if !h.checkLicenseScope(c, id) {

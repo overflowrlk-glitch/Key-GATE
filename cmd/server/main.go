@@ -848,6 +848,7 @@ func main() {
 		licWrite.POST("/licenses/:id/change-plan", adminH.ChangeLicensePlan)
 		licWrite.GET("/licenses/:id/usage", adminH.ListLicenseUsage)
 		licWrite.POST("/licenses/:id/usage/reset", adminH.ResetLicenseUsage)
+		licWrite.GET("/licenses/:id/sessions", adminH.ListLicenseSessions)
 		licWrite.GET("/licenses/:id/seats", adminH.ListLicenseSeats)
 
 		licWrite.GET("/licenses/:id/addons", adminH.ListLicenseAddons)

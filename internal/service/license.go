@@ -120,6 +120,7 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 
 	if existing, err := s.store.FindActivation(ctx, lic.ID, in.Identifier); err == nil {
 		_ = s.store.TouchActivation(ctx, existing.ID)
+		s.touchSession(ctx, lic.ID, in.Identifier, in.IPAddress)
 		middleware.LicenseActivations.WithLabelValues(lic.ProductID, "already_activated").Inc()
 		token, err := s.signToken(lic, in.Identifier)
 		if err != nil {
@@ -157,6 +158,7 @@ func (s *LicenseService) Activate(ctx context.Context, in ActivateInput) (*Activ
 	// key parada nao consome tempo. Condicional a valid_until IS NULL no
 	// store (corrida de duas primeiras ativacoes nao estende a janela).
 	s.anchorLicenseClock(ctx, lic)
+	s.touchSession(ctx, lic.ID, in.Identifier, in.IPAddress)
 
 	s.store.Audit(ctx, &model.AuditLog{
 		Entity: "license", EntityID: lic.ID, Action: "activated",
@@ -236,6 +238,15 @@ func licensePlanName(lic *model.License) string {
 		return lic.Plan.Name
 	}
 	return ""
+}
+
+// touchSession records a usage heartbeat for the admin activity panel
+// (see store.TouchLicenseSession). Best-effort: a telemetry failure
+// must never fail the license request itself.
+func (s *LicenseService) touchSession(ctx context.Context, licenseID, identifier, ip string) {
+	if err := s.store.TouchLicenseSession(ctx, licenseID, identifier, ip); err != nil {
+		s.logger.Error("license session telemetry failed", "license_id", licenseID, "error", err)
+	}
 }
 
 // ─── Verify ───
@@ -319,6 +330,7 @@ func (s *LicenseService) Verify(ctx context.Context, in VerifyInput) (*VerifyRes
 		return nil, licenseNotFound()
 	}
 	_ = s.store.TouchActivation(ctx, act.ID)
+	s.touchSession(ctx, lic.ID, in.Identifier, in.IPAddress)
 
 	if s.failures != nil {
 		s.failures.RecordSuccess("key:" + in.LicenseKey)

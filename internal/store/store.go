@@ -767,6 +767,83 @@ func (s *Store) CountActivations(ctx context.Context, licenseID string) (int, er
 		Where("license_id = ?", licenseID).Count(ctx)
 }
 
+// ─── License Sessions (activity telemetry) ───
+
+// licenseSessionGapMinutes: heartbeats (verify/activate) are ~60-90s
+// apart while the client runs; a gap beyond this opens a new session
+// row — i.e. the app was closed (or idle) and reopened.
+const licenseSessionGapMinutes = 10
+
+// TouchLicenseSession folds a heartbeat into the current session (same
+// license + identifier, last seen within the gap) or opens a new one.
+// Best-effort telemetry — callers log failures and move on.
+func (s *Store) TouchLicenseSession(ctx context.Context, licenseID, identifier, ip string) error {
+	res, err := s.DB.NewRaw(
+		`UPDATE license_sessions
+		    SET last_seen_at = now(),
+		        verify_count = verify_count + 1,
+		        ip_address = CASE WHEN ? <> '' THEN ? ELSE ip_address END
+		  WHERE id = (
+		        SELECT id FROM license_sessions
+		         WHERE license_id = ? AND identifier = ?
+		         ORDER BY last_seen_at DESC LIMIT 1
+		      )
+		    AND last_seen_at > now() - make_interval(mins => ?)`,
+		ip, ip, licenseID, identifier, licenseSessionGapMinutes).Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		return nil
+	}
+	_, err = s.DB.NewInsert().Model(&model.LicenseSession{
+		ID:         newID(),
+		LicenseID:  licenseID,
+		Identifier: identifier,
+		IPAddress:  ip,
+	}).Exec(ctx)
+	return err
+}
+
+func (s *Store) ListLicenseSessions(ctx context.Context, licenseID string, limit int) ([]*model.LicenseSession, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	var out []*model.LicenseSession
+	err := s.DB.NewSelect().Model(&out).
+		Where("license_id = ?", licenseID).
+		OrderExpr("last_seen_at DESC").
+		Limit(limit).
+		Scan(ctx)
+	return out, err
+}
+
+// LicenseSessionStats is the per-license activity summary shown in the
+// admin panel (opens ≈ session rows; online time = sum of session
+// durations).
+type LicenseSessionStats struct {
+	TotalSessions      int        `json:"total_sessions"`
+	TotalVerifies      int        `json:"total_verifies"`
+	DeviceCount        int        `json:"device_count"`
+	FirstSeenAt        *time.Time `json:"first_seen_at"`
+	LastSeenAt         *time.Time `json:"last_seen_at"`
+	TotalOnlineSeconds int64      `json:"total_online_seconds"`
+}
+
+func (s *Store) LicenseSessionStats(ctx context.Context, licenseID string) (*LicenseSessionStats, error) {
+	st := new(LicenseSessionStats)
+	err := s.DB.NewRaw(
+		`SELECT COUNT(*)::int                                                          AS total_sessions,
+		        COALESCE(SUM(verify_count), 0)::int                                    AS total_verifies,
+		        COUNT(DISTINCT identifier)::int                                        AS device_count,
+		        MIN(started_at)                                                        AS first_seen_at,
+		        MAX(last_seen_at)                                                      AS last_seen_at,
+		        COALESCE(SUM(EXTRACT(EPOCH FROM (last_seen_at - started_at)))::bigint, 0) AS total_online_seconds
+		   FROM license_sessions
+		  WHERE license_id = ?`, licenseID).Scan(ctx, st)
+	return st, err
+}
+
 // FindExpiringLicenses returns active licenses that expire between `from` and `to`.
 func (s *Store) FindExpiringLicenses(ctx context.Context, from, to time.Time) ([]*model.License, error) {
 	var out []*model.License

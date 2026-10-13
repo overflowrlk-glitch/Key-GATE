@@ -257,6 +257,11 @@ export const admin = {
   resetUsageCounter: (id: string, data: { feature: string; period?: string; period_key?: string }) =>
     post(`/admin/licenses/${id}/usage/reset`, data),
 
+  getLicenseSessions: (id: string, limit = 50) =>
+    get<{ summary: LicenseSessionStats; sessions: LicenseSession[] }>(
+      `/admin/licenses/${id}/sessions?limit=${limit}`,
+    ),
+
   getLicenseSeats: (id: string) => get<{ seats: Seat[]; active_count: number }>(`/admin/licenses/${id}/seats`),
 
   getAnalytics: (params?: { product_id?: string; from?: string; to?: string; granularity?: string }) => {
@@ -557,6 +562,25 @@ export interface Activation {
   ip_address?: string
   last_verified: string
   created_at: string
+}
+
+export interface LicenseSession {
+  id: string
+  license_id: string
+  identifier: string
+  ip_address?: string
+  started_at: string
+  last_seen_at: string
+  verify_count: number
+}
+
+export interface LicenseSessionStats {
+  total_sessions: number
+  total_verifies: number
+  device_count: number
+  first_seen_at: string | null
+  last_seen_at: string | null
+  total_online_seconds: number
 }
 
 export interface APIKey {

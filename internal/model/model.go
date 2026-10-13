@@ -354,6 +354,25 @@ type Activation struct {
 	License *License `bun:"rel:belongs-to,join:license_id=id" json:"license,omitempty"`
 }
 
+// ─── License Session (activity telemetry) ───
+//
+// One row per contiguous usage session of a license on a device. The
+// client verifies every ~60-90s while running; a verify gap larger
+// than the session window opens a new row, so the row count
+// approximates "times the app was opened". Fed best-effort by
+// LicenseService.Verify/Activate.
+type LicenseSession struct {
+	bun.BaseModel `bun:"table:license_sessions"`
+
+	ID          string    `bun:",pk" json:"id"`
+	LicenseID   string    `bun:",notnull" json:"license_id"`
+	Identifier  string    `bun:",notnull" json:"identifier"`
+	IPAddress   string    `bun:",notnull,default:''" json:"ip_address,omitempty"`
+	StartedAt   time.Time `bun:",nullzero,default:now()" json:"started_at"`
+	LastSeenAt  time.Time `bun:",nullzero,default:now()" json:"last_seen_at"`
+	VerifyCount int       `bun:",notnull,default:1" json:"verify_count"`
+}
+
 // ─── Audit Log ───
 
 type AuditLog struct {

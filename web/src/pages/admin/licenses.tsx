@@ -398,10 +398,32 @@ function CreateLicenseDialog({
   )
 }
 
+// Duration / date-time helpers for the activity section — formatDate
+// is day-granularity only, and sessions need clock time.
+function formatDuration(totalSeconds: number): string {
+  if (!totalSeconds || totalSeconds <= 0) return "0m"
+  const d = Math.floor(totalSeconds / 86400)
+  const h = Math.floor((totalSeconds % 86400) / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m`
+  return `${Math.floor(totalSeconds)}s`
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "-"
+  return new Date(value).toLocaleString()
+}
+
 function LicenseDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const { data: lic, isLoading } = useQuery({ queryKey: ["admin", "license", id], queryFn: () => admin.getLicense(id) })
+  const { data: activity } = useQuery({
+    queryKey: ["admin", "license", id, "activity"],
+    queryFn: () => admin.getLicenseSessions(id),
+  })
   const [copied, setCopied] = useState(false)
   const [changingPlan, setChangingPlan] = useState(false)
 
@@ -683,6 +705,69 @@ function LicenseDetail({ id, onClose }: { id: string; onClose: () => void }) {
                     </div>
                   </>
                 )}
+
+                {/* Activity — usage telemetry (opens ≈ sessions; fed by
+                    the client's verify/activate heartbeats). */}
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-3">{t("licenses.activity")}</h3>
+                  {activity && activity.summary.total_sessions > 0 ? (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+                        <div>
+                          <p className="text-muted-foreground text-xs">{t("licenses.opens")}</p>
+                          <p className="mt-1 font-medium">{activity.summary.total_sessions}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs">{t("licenses.timeTotal")}</p>
+                          <p className="mt-1 font-medium">{formatDuration(activity.summary.total_online_seconds)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs">{t("licenses.lastSeen")}</p>
+                          <p className="mt-1 font-medium">{formatDateTime(activity.summary.last_seen_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground text-xs">{t("licenses.verifies")}</p>
+                          <p className="mt-1 font-medium">{activity.summary.total_verifies}</p>
+                        </div>
+                      </div>
+                      <DataTable>
+                        <DataTableHeader>
+                          <DataTableRow>
+                            <DataTableHead>{t("licenses.device")}</DataTableHead>
+                            <DataTableHead>{t("licenses.sessionStart")}</DataTableHead>
+                            <DataTableHead>{t("licenses.sessionLastSeen")}</DataTableHead>
+                            <DataTableHead>{t("licenses.ip")}</DataTableHead>
+                            <DataTableHead>{t("licenses.verifies")}</DataTableHead>
+                          </DataTableRow>
+                        </DataTableHeader>
+                        <DataTableBody>
+                          {activity.sessions.map((s) => (
+                            <DataTableRow key={s.id}>
+                              <DataTableCell>
+                                <code className="text-xs" title={s.identifier}>
+                                  {s.identifier.slice(0, 16)}…
+                                </code>
+                              </DataTableCell>
+                              <DataTableCell className="text-muted-foreground text-xs">
+                                {formatDateTime(s.started_at)}
+                              </DataTableCell>
+                              <DataTableCell className="text-muted-foreground text-xs">
+                                {formatDateTime(s.last_seen_at)}
+                              </DataTableCell>
+                              <DataTableCell className="text-muted-foreground text-xs">
+                                {s.ip_address || "-"}
+                              </DataTableCell>
+                              <DataTableCell className="text-muted-foreground text-xs">{s.verify_count}</DataTableCell>
+                            </DataTableRow>
+                          ))}
+                        </DataTableBody>
+                      </DataTable>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{t("licenses.noActivity")}</p>
+                  )}
+                </div>
 
                 {/* Entitlements */}
                 {lic.plan?.entitlements && lic.plan.entitlements.length > 0 && (
