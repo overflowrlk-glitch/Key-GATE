@@ -23,26 +23,26 @@ export function formatDate(
 }
 
 export function boolColor(active: boolean): string {
-  return active ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"
+  return active ? "bg-emerald-500/15 text-emerald-300" : "bg-gray-500/15 text-gray-300"
 }
 
 export function statusColor(status: string): string {
   switch (status) {
     case "active":
-      return "bg-emerald-100 text-emerald-800"
+      return "bg-emerald-500/15 text-emerald-300"
     case "trialing":
-      return "bg-blue-100 text-blue-800"
+      return "bg-blue-500/15 text-blue-300"
     case "past_due":
-      return "bg-amber-100 text-amber-800"
+      return "bg-amber-500/15 text-amber-300"
     case "canceled":
-      return "bg-gray-100 text-gray-800"
+      return "bg-gray-500/15 text-gray-300"
     case "expired":
-      return "bg-red-100 text-red-700"
+      return "bg-red-500/15 text-red-300"
     case "suspended":
-      return "bg-orange-100 text-orange-800"
+      return "bg-orange-500/15 text-orange-300"
     case "revoked":
-      return "bg-red-200 text-red-900"
+      return "bg-red-500/20 text-red-200"
     default:
-      return "bg-gray-100 text-gray-800"
+      return "bg-gray-500/15 text-gray-300"
   }
 }

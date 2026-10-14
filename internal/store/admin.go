@@ -297,21 +297,56 @@ func (s *Store) ExportLicenses(ctx context.Context, productID, status string) ([
 
 // ─── Audit Log ───
 
+// AuditLogFilter reúne os filtros combináveis (AND) da tela de auditoria.
+// Zeros/vazios = filtro desligado. Query busca em entity_id, IP e no
+// payload JSONB (changes) — é o que permite achar "o que esse cliente fez"
+// a partir de um hex de device, de um IP ou de um valor que mudou.
+type AuditLogFilter struct {
+	Entity    string
+	EntityID  string
+	ProductID string
+	Action    string
+	ActorType string
+	IPAddress string
+	Query     string
+	From      time.Time
+	To        time.Time
+}
+
 // ListAuditLogs returns paginated audit-log rows. Filters compose
-// with AND. The optional productID filter resolves the parent product
+// with AND. The optional ProductID filter resolves the parent product
 // across the entity types that carry a product_id FK (license, plan,
 // addon, webhook, release, api_key, plus the product row itself). It
 // is best-effort: 2-hop entities (seat, activation, release_artifact)
 // aren't matched and silently fall out of the filtered view.
-func (s *Store) ListAuditLogs(ctx context.Context, entity, entityID, productID string, offset, limit int) ([]*model.AuditLog, int, error) {
+func (s *Store) ListAuditLogs(ctx context.Context, f AuditLogFilter, offset, limit int) ([]*model.AuditLog, int, error) {
 	q := s.DB.NewSelect().Model((*model.AuditLog)(nil)).OrderExpr("created_at DESC")
-	if entity != "" {
-		q = q.Where("entity = ?", entity)
+	if f.Entity != "" {
+		q = q.Where("entity = ?", f.Entity)
 	}
-	if entityID != "" {
-		q = q.Where("entity_id = ?", entityID)
+	if f.EntityID != "" {
+		q = q.Where("entity_id = ?", f.EntityID)
 	}
-	if productID != "" {
+	if f.Action != "" {
+		q = q.Where("action = ?", f.Action)
+	}
+	if f.ActorType != "" {
+		q = q.Where("actor_type = ?", f.ActorType)
+	}
+	if f.IPAddress != "" {
+		q = q.Where("ip_address = ?", f.IPAddress)
+	}
+	if !f.From.IsZero() {
+		q = q.Where("created_at >= ?", f.From)
+	}
+	if !f.To.IsZero() {
+		q = q.Where("created_at <= ?", f.To)
+	}
+	if f.Query != "" {
+		like := "%" + f.Query + "%"
+		q = q.Where(`(entity_id ILIKE ? OR ip_address ILIKE ? OR changes::text ILIKE ?)`, like, like, like)
+	}
+	if f.ProductID != "" {
 		q = q.Where(`(
             (entity = 'product' AND entity_id = ?)
          OR entity_id IN (SELECT id FROM licenses  WHERE product_id = ?)
@@ -320,7 +355,7 @@ func (s *Store) ListAuditLogs(ctx context.Context, entity, entityID, productID s
          OR entity_id IN (SELECT id FROM webhooks  WHERE product_id = ?)
          OR entity_id IN (SELECT id FROM releases  WHERE product_id = ?)
          OR entity_id IN (SELECT id FROM api_keys  WHERE product_id = ?)
-        )`, productID, productID, productID, productID, productID, productID, productID)
+        )`, f.ProductID, f.ProductID, f.ProductID, f.ProductID, f.ProductID, f.ProductID, f.ProductID)
 	}
 	total, err := q.Count(ctx)
 	if err != nil {
@@ -329,6 +364,35 @@ func (s *Store) ListAuditLogs(ctx context.Context, entity, entityID, productID s
 	var out []*model.AuditLog
 	err = q.Offset(offset).Limit(limit).Scan(ctx, &out)
 	return out, total, err
+}
+
+// AuditLogActions / AuditLogActorTypes alimentam os dropdowns de filtro com
+// o que REALMENTE existe na base (o painel não deve oferecer ação que nunca
+// aconteceu). Duas DISTINCT queries no próprio model — a tabela de auditoria
+// é pequena e o resultado é estável.
+func (s *Store) ListAuditLogFacets(ctx context.Context) (actions []string, actorTypes []string, err error) {
+	var byAction []*model.AuditLog
+	if err = s.DB.NewSelect().Model(&byAction).
+		ColumnExpr("DISTINCT action").OrderExpr("action ASC").Scan(ctx, &byAction); err != nil {
+		return nil, nil, err
+	}
+	for _, r := range byAction {
+		if r.Action != "" {
+			actions = append(actions, r.Action)
+		}
+	}
+
+	var byActor []*model.AuditLog
+	if err = s.DB.NewSelect().Model(&byActor).
+		ColumnExpr("DISTINCT actor_type").OrderExpr("actor_type ASC").Scan(ctx, &byActor); err != nil {
+		return nil, nil, err
+	}
+	for _, r := range byActor {
+		if r.ActorType != "" {
+			actorTypes = append(actorTypes, r.ActorType)
+		}
+	}
+	return actions, actorTypes, nil
 }
 
 // ─── Stats ───

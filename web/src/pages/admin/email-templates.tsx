@@ -221,7 +221,7 @@ export default function EmailTemplatesManager() {
               title="Email Preview"
               sandbox=""
               srcDoc={getPreviewHtml(previewing)}
-              className="w-full h-96 border rounded-lg bg-white"
+              className="w-full h-96 border rounded-lg bg-background"
             />
           )}
         </DialogContent>

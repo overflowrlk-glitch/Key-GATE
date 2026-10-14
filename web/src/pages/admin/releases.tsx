@@ -443,10 +443,10 @@ export default function ReleasesPage() {
 function StatusBadge({ status, yankedReason }: { status: string; yankedReason?: string }) {
   const cls =
     status === "published"
-      ? "bg-emerald-100 text-emerald-800"
+      ? "bg-emerald-500/15 text-emerald-300"
       : status === "yanked"
-        ? "bg-red-100 text-red-800"
-        : "bg-amber-100 text-amber-800"
+        ? "bg-red-500/15 text-red-300"
+        : "bg-amber-500/15 text-amber-300"
   return (
     <Badge className={cls} title={yankedReason}>
       {status === "yanked" && <AlertTriangle className="h-3 w-3 mr-1" />}
@@ -676,9 +676,9 @@ function ArtifactRow({
         {ready ? `${formatBytes(artifact.file_size)} · sha256:${artifact.sha256.slice(0, 12)}…` : "Not uploaded yet"}
       </span>
       {ready ? (
-        <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">ready</Badge>
+        <Badge className="bg-emerald-500/15 text-emerald-300 text-[10px]">ready</Badge>
       ) : (
-        <Badge className="bg-amber-100 text-amber-800 text-[10px]">pending</Badge>
+        <Badge className="bg-amber-500/15 text-amber-300 text-[10px]">pending</Badge>
       )}
       {canEdit && (
         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete}>
@@ -1111,7 +1111,7 @@ function ActiveSigningKeyCard({
             <p className="font-medium text-sm">Active signing key</p>
             <p className="text-xs text-muted-foreground">Created {formatDate(keyRow.created_at)}</p>
           </div>
-          <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
+          <Badge className="bg-emerald-500/15 text-emerald-300">Active</Badge>
         </div>
         <div>
           <Label className="text-xs">Public key (Ed25519, base64)</Label>

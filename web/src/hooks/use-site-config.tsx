@@ -13,11 +13,12 @@ interface SiteConfig {
 }
 
 const defaults: SiteConfig = {
-  site_name: "Keygate",
+  site_name: "Fast Auth",
   brand_color: "",
   logo_url: "",
   timezone: "UTC",
   language: "",
+  // Atribuição exigida pela AGPL v3 §7(b) — ver NOTICE e internal/branding.
   attribution_text: "Powered by Keygate",
   attribution_url: "https://keygate.app",
   loading: true,
@@ -33,7 +34,7 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
       .config()
       .then((data) => {
         setConfig({
-          site_name: data.site_name || "Keygate",
+          site_name: data.site_name || "Fast Auth",
           brand_color: data.brand_color || "",
           logo_url: data.logo_url || "",
           timezone: data.timezone || "UTC",

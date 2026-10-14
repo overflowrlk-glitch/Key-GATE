@@ -1215,14 +1215,44 @@ func (h *AdminHandler) DeleteActivation(c *gin.Context) {
 // ─── Audit Logs ───
 
 func (h *AdminHandler) ListAuditLogs(c *gin.Context) {
-	logs, total, err := h.Store.ListAuditLogs(c,
-		c.Query("entity"), c.Query("entity_id"), c.Query("product_id"),
+	f := store.AuditLogFilter{
+		Entity:    c.Query("entity"),
+		EntityID:  c.Query("entity_id"),
+		ProductID: c.Query("product_id"),
+		Action:    c.Query("action"),
+		ActorType: c.Query("actor_type"),
+		IPAddress: c.Query("ip"),
+		Query:     c.Query("q"),
+	}
+	if v := c.Query("from"); v != "" {
+		f.From, _ = time.Parse("2006-01-02", v)
+	}
+	if v := c.Query("to"); v != "" {
+		t, err := time.Parse("2006-01-02", v)
+		if err == nil {
+			// End-of-day: include the entire "to" date
+			f.To = t.Add(24*time.Hour - time.Nanosecond)
+		}
+	}
+
+	logs, total, err := h.Store.ListAuditLogs(c, f,
 		queryInt(c, "offset", 0), queryInt(c, "limit", 50))
 	if err != nil {
 		response.Internal(c)
 		return
 	}
 	response.OK(c, gin.H{"audit_logs": logs, "total": total})
+}
+
+// ListAuditLogFacets devolve as ações/autores que realmente existem na base,
+// para os dropdowns de filtro da tela de auditoria não oferecerem valor vazio.
+func (h *AdminHandler) ListAuditLogFacets(c *gin.Context) {
+	actions, actorTypes, err := h.Store.ListAuditLogFacets(c)
+	if err != nil {
+		response.Internal(c)
+		return
+	}
+	response.OK(c, gin.H{"actions": actions, "actor_types": actorTypes})
 }
 
 // ─── Users ───

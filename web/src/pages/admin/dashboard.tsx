@@ -49,11 +49,11 @@ export default function DashboardPage() {
       </div>
 
       {updateData?.available && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
           <div className="flex items-center gap-3">
             <ArrowUpCircle className="h-5 w-5 text-blue-600" />
             <div>
-              <p className="text-sm font-medium text-blue-900">
+              <p className="text-sm font-medium text-blue-200">
                 {t("dashboard.updateAvailable", { version: updateData.latest_version })}
               </p>
               {updateData.update_command && (

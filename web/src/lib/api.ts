@@ -267,9 +267,7 @@ export const admin = {
     post(`/admin/licenses/${id}/usage/reset`, data),
 
   getLicenseSessions: (id: string, limit = 50) =>
-    get<{ summary: LicenseSessionStats; sessions: LicenseSession[] }>(
-      `/admin/licenses/${id}/sessions?limit=${limit}`,
-    ),
+    get<{ summary: LicenseSessionStats; sessions: LicenseSession[] }>(`/admin/licenses/${id}/sessions?limit=${limit}`),
 
   getLicenseSeats: (id: string) => get<{ seats: Seat[]; active_count: number }>(`/admin/licenses/${id}/seats`),
 
@@ -360,6 +358,12 @@ export const admin = {
     entity?: string
     entity_id?: string
     product_id?: string
+    action?: string
+    actor_type?: string
+    ip?: string
+    q?: string
+    from?: string
+    to?: string
     offset?: number
     limit?: number
   }) => {
@@ -367,10 +371,20 @@ export const admin = {
     if (params?.entity) q.set("entity", params.entity)
     if (params?.entity_id) q.set("entity_id", params.entity_id)
     if (params?.product_id) q.set("product_id", params.product_id)
+    if (params?.action) q.set("action", params.action)
+    if (params?.actor_type) q.set("actor_type", params.actor_type)
+    if (params?.ip) q.set("ip", params.ip)
+    if (params?.q) q.set("q", params.q)
+    if (params?.from) q.set("from", params.from)
+    if (params?.to) q.set("to", params.to)
     if (params?.offset) q.set("offset", String(params.offset))
     if (params?.limit) q.set("limit", String(params.limit))
     return get<{ audit_logs: AuditLog[]; total: number }>(`/admin/audit-logs?${q}`)
   },
+
+  // Valores que realmente existem em audit_logs — alimentam os dropdowns de
+  // filtro (não oferecer ação que nunca aconteceu na base).
+  auditLogFacets: () => get<{ actions: string[] | null; actor_types: string[] | null }>("/admin/audit-logs/facets"),
 
   listUsers: (params?: { search?: string; offset?: number; limit?: number }) => {
     const q = new URLSearchParams()

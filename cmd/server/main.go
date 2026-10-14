@@ -899,6 +899,7 @@ func main() {
 		admin.GET("/analytics/activation-trend", adminH.AnalyticsActivationTrend)
 		admin.GET("/analytics/insights", adminH.AnalyticsInsights)
 		admin.GET("/audit-logs", adminH.ListAuditLogs)
+		admin.GET("/audit-logs/facets", adminH.ListAuditLogFacets)
 		admin.GET("/users", adminH.ListUsers)
 		admin.GET("/users/:id", adminH.GetUserDetail)
 

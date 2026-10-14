@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
   <defs>
     <linearGradient id="shield" x1="64" y1="8" x2="64" y2="120" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8b5cf6"/>
-      <stop offset="1" stop-color="#6d28d9"/>
+      <stop stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#b91c1c"/>
     </linearGradient>
     <linearGradient id="shieldLight" x1="16" y1="28" x2="64" y2="120" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#a78bfa"/>
-      <stop offset="1" stop-color="#7c3aed"/>
+      <stop stop-color="#f87171"/>
+      <stop offset="1" stop-color="#dc2626"/>
     </linearGradient>
   </defs>
   <!-- Shield body -->

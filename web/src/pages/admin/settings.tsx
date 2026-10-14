@@ -156,7 +156,7 @@ export default function SettingsPage() {
                   <Input
                     value={form.site_name || ""}
                     onChange={(e) => set("site_name", e.target.value)}
-                    placeholder="Keygate"
+                    placeholder="Fast Auth"
                   />
                   <p className="text-xs text-muted-foreground">{t("settings.siteNameDesc")}</p>
                 </div>
@@ -407,7 +407,7 @@ export default function SettingsPage() {
 
                 {updateData &&
                   (updateData.available ? (
-                    <div className="flex items-center gap-2 bg-blue-50 text-blue-800 rounded-lg px-4 py-2 text-sm">
+                    <div className="flex items-center gap-2 bg-blue-500/15 text-blue-200 rounded-lg px-4 py-2 text-sm">
                       <ArrowUpCircle className="h-4 w-4" />
                       <span>{t("settings.updateAvailable", { version: updateData.latest_version })}</span>
                       {updateData.release_url && (

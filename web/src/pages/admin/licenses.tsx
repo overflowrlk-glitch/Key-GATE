@@ -1089,11 +1089,11 @@ function SeatsTab({ licenseId, maxSeats }: { licenseId: string; maxSeats: number
                 </DataTableCell>
                 <DataTableCell>
                   {s.removed_at ? (
-                    <Badge className="bg-red-100 text-red-800">{t("licenses.removed")}</Badge>
+                    <Badge className="bg-red-500/15 text-red-300">{t("licenses.removed")}</Badge>
                   ) : s.accepted_at ? (
-                    <Badge className="bg-emerald-100 text-emerald-800">{t("licenses.active")}</Badge>
+                    <Badge className="bg-emerald-500/15 text-emerald-300">{t("licenses.active")}</Badge>
                   ) : (
-                    <Badge className="bg-amber-100 text-amber-800">{t("licenses.pending")}</Badge>
+                    <Badge className="bg-amber-500/15 text-amber-300">{t("licenses.pending")}</Badge>
                   )}
                 </DataTableCell>
                 <DataTableCell className="text-muted-foreground text-xs">{formatDate(s.invited_at)}</DataTableCell>

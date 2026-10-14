@@ -30,8 +30,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className={`rounded-lg border px-4 py-3 text-sm shadow-lg animate-in slide-in-from-bottom-2 ${
               t.type === "error"
-                ? "bg-red-50 border-red-200 text-red-800"
-                : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                ? "bg-red-500/10 border-red-500/30 text-red-200"
+                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
             }`}
           >
             {t.message}

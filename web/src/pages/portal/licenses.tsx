@@ -785,7 +785,7 @@ function InvoicesDialog({ licenseId, onClose }: { licenseId: string; onClose: ()
                 <div className="flex items-center gap-3">
                   <Badge
                     className={
-                      inv.status === "paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                      inv.status === "paid" ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"
                     }
                   >
                     {inv.status}

@@ -913,14 +913,14 @@ export default function AnalyticsPage() {
                               <Badge
                                 className={
                                   a.action.includes("create")
-                                    ? "bg-emerald-100 text-emerald-800"
+                                    ? "bg-emerald-500/15 text-emerald-300"
                                     : a.action.includes("delete") || a.action.includes("revoke")
-                                      ? "bg-red-100 text-red-800"
+                                      ? "bg-red-500/15 text-red-300"
                                       : a.action.includes("update")
-                                        ? "bg-blue-100 text-blue-800"
+                                        ? "bg-blue-500/15 text-blue-300"
                                         : a.action.includes("suspend")
-                                          ? "bg-orange-100 text-orange-800"
-                                          : "bg-gray-100 text-gray-800"
+                                          ? "bg-orange-500/15 text-orange-300"
+                                          : "bg-gray-500/15 text-gray-300"
                                 }
                               >
                                 {a.action}
